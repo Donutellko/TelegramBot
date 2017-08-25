@@ -1,7 +1,11 @@
 package com.donutellko.telegrambot;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.os.AsyncTask;
 import android.os.CountDownTimer;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -31,7 +35,11 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+
+import static com.donutellko.telegrambot.MainActivity.ids;
+import static com.donutellko.telegrambot.MainActivity.userBots;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -39,11 +47,12 @@ public class MainActivity extends AppCompatActivity {
 	TextView uv;
 	View content;
 	static TelegramBot bot;
-	Map<Long, UserBot> userBots = new HashMap<>();
-	List<Long> ids = new LinkedList<>();
+	static Map<Long, UserBot> userBots = new HashMap<>();
+	static List<Long> ids = new LinkedList<>();
+	static int updId = 0;
 
 	static StringBuilder log = new StringBuilder("Waiting for orders!\n");
-	String lastUpdated = "Updated: --";
+	static String lastUpdated = "Updated: --";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -61,16 +70,16 @@ public class MainActivity extends AppCompatActivity {
 		button.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
-				for (Long id : ids) {
-					userBots.get(id).sendMsg("Куку, юзер! Это тест хезе чего сейчас проходит.");
-				}
+				(new Broadcaster()).execute();
 			}
 		});
 
 
-		CountDownTimer timer = new CountDownTimer(Long.MAX_VALUE, 500) {
+		CountDownTimer timer = new CountDownTimer(Long.MAX_VALUE, 200) {
 			@Override
 			public void onTick(long l) {
+				new UpdatesGetter().execute();
+
 				tv.setText(log);
 				uv.setText(lastUpdated);
 			}
@@ -81,40 +90,87 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}.start();
 
-		bot.setUpdatesListener(new UpdatesListener() {
-			@Override
-			public int process(List<Update> updates) {
-				updateTime();
+//		bot.setUpdatesListener(new UpdatesListener() {
+//			@Override
+//			public int process(List<Update> updates) {
+//				return processUpdates(updates);
+//			}
+//		});
+	}
 
-				for (Update upd : updates) {
-					Message msg = upd.message();
-					Long id = msg.chat().id();
-					UserBot cur;
+	public static int processUpdates(List<Update> updates) {
+		updateTime();
 
-					if (! userBots.containsKey(id)) {
-						cur = new UserBot(upd);
-						userBots.put(id, cur);
-						ids.add(id);
-					} else
-						cur = userBots.get(id);
+		for (Update upd : updates) {
+			if (upd.updateId() <= updId)
+				continue;
 
-					cur.process(upd);
-				}
-				return UpdatesListener.CONFIRMED_UPDATES_ALL;
-			}
-		});
+			Message msg = upd.message();
+			Long id = msg.chat().id();
+
+			updId = upd.updateId();
+			UserBot cur;
+
+			if (! userBots.containsKey(id)) {
+				cur = new UserBot(upd);
+				userBots.put(id, cur);
+				ids.add(id);
+			} else
+				cur = userBots.get(id);
+
+			cur.process(upd);
+			updateLog("\n" + cur.name + " (" +  id + ") ");
+		}
+		return updId;
 	}
 
 
 	public static void updateLog(String text) {
 		if (text.length() > 0) {
 			log.append("\n" + text);
-			tv.setText(log);
 		}
 	}
 
-	public void updateTime() {
+	public static void updateTime() {
 		lastUpdated = ("Updated: " + Calendar.getInstance().getTime());
 	}
 
+	@Override
+	protected void onStop() {
+		super.onStop();
+		SharedPreferences sp = getApplicationContext().getSharedPreferences("Prefs", Context.MODE_PRIVATE);
+		SharedPreferences.Editor spe = sp.edit();
+
+		spe.putInt("Last processed update", updId);
+	}
+
+	@Override
+	protected void onStart() {
+		super.onStart();
+		SharedPreferences sp = getApplicationContext().getSharedPreferences("Prefs", Context.MODE_PRIVATE);
+//		SharedPreferences.Editor spe = sp.edit();
+
+		updId = sp.getInt("Last processed update", 0);
+	}
+}
+
+class UpdatesGetter extends AsyncTask<Void, Void, Void> {
+	@Override
+	protected Void doInBackground(Void... voids) {
+		GetUpdates getUpdates = new GetUpdates().limit(100).offset(MainActivity.updId + 1).timeout(100);
+		GetUpdatesResponse updatesResponse = MainActivity.bot.execute(getUpdates);
+		List<Update> updates = updatesResponse.updates();
+		MainActivity.processUpdates(updates);
+		return null;
+	}
+}
+
+class Broadcaster extends AsyncTask<Void, Void, Void> {
+	@Override
+	protected Void doInBackground(Void... voids) {
+		for (Long id : ids) {
+			userBots.get(id).sendMsg("Куку, юзер! Это тест хезе чего сейчас проходит.");
+		}
+		return null;
+	}
 }

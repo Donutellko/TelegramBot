@@ -10,8 +10,6 @@ import com.pengrad.telegrambot.model.request.ParseMode;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
 
-import java.util.Calendar;
-
 /**
  * Created by donat on 8/22/17.
  */
@@ -22,6 +20,7 @@ public class UserBot {
 	String name;
 	boolean isPrivate;
 	StringBuilder log = new StringBuilder();
+	private String myName = "DonutellkoBot";
 
 
 	public UserBot(Update upd) {
@@ -29,8 +28,8 @@ public class UserBot {
 		this.chatId = chat.id();
 		this.isPrivate = chat.type().equals(Chat.Type.Private);
 		this.name = isPrivate ?
-				chat.username() + " " + chat.firstName() + " " + chat.lastName() :
-				chat.username() + " " + chat.title();
+				"@" + chat.username() + " " + chat.firstName() + " " + chat.lastName() :
+				chat.title();
 
 		log.append("Started chat " + (isPrivate ? "with " : "in ") + name);
 	}
@@ -39,8 +38,20 @@ public class UserBot {
 		Message msg = upd.message();
 		String name = upd.message().from().firstName();
 
-		if (msg.entities()[0].type().equals(MessageEntity.Type.bot_command)) // если является командой
-			switch (msg.text()) {
+		if (msg.entities() != null &&
+				msg.entities()[0].type().equals(MessageEntity.Type.bot_command)) {// если является командой
+			String text = msg.text();
+
+			String commandName = text.replace(myName, "");
+
+//			int ind = text.indexOf("@" + myName);
+//			if (ind >= 0)
+//				commandName = text.substring(0, ind);
+//				// + text.substring(ind + myName.length() + 1);
+
+			Log.i("command:", commandName);
+
+			switch (commandName) {
 				case "/start":
 					return name.equals("Donat") ? "Привет, Повелитель!" : "Привет, " + name + "!";
 				case "/echo":
@@ -56,7 +67,7 @@ public class UserBot {
 				default:
 					return "Не понял тебя...";
 			}
-		else
+		} else
 			return "Даже не знаю, что сказать...";
 	}
 
