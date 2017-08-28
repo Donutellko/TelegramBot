@@ -2,13 +2,13 @@ package com.donutellko.telegrambot;
 
 import android.util.Log;
 
-import com.pengrad.telegrambot.model.Chat;
-import com.pengrad.telegrambot.model.Message;
-import com.pengrad.telegrambot.model.MessageEntity;
-import com.pengrad.telegrambot.model.Update;
-import com.pengrad.telegrambot.model.request.ParseMode;
-import com.pengrad.telegrambot.request.SendMessage;
-import com.pengrad.telegrambot.response.SendResponse;
+import org.telegram.telegrambots.api.methods.ParseMode;
+import org.telegram.telegrambots.api.methods.send.SendMessage;
+import org.telegram.telegrambots.api.objects.Chat;
+import org.telegram.telegrambots.api.objects.Message;
+import org.telegram.telegrambots.api.objects.MessageEntity;
+import org.telegram.telegrambots.api.objects.Update;
+import org.telegram.telegrambots.exceptions.TelegramApiException;
 
 /**
  * Created by donat on 8/22/17.
@@ -24,23 +24,24 @@ public class UserBot {
 
 
 	public UserBot(Update upd) {
-		Chat chat = upd.message().chat();
-		this.chatId = chat.id();
-		this.isPrivate = chat.type().equals(Chat.Type.Private);
+		Chat chat = upd.getMessage().getChat();
+		this.chatId = chat.getId();
+//		this.isPrivate = chat.type().equals(Chat.Type.Private);
+		this.isPrivate = chat.isUserChat();
 		this.name = isPrivate ?
-				"@" + chat.username() + " " + chat.firstName() + " " + chat.lastName() :
-				chat.title();
+				"@" + chat.getUserName() + " " + chat.getFirstName() + " " + chat.getLastName() :
+				chat.getTitle();
 
 		log.append("Started chat " + (isPrivate ? "with " : "in ") + name);
 	}
 
 	private String getAnswer(Update upd) {
-		Message msg = upd.message();
-		String name = upd.message().from().firstName();
+		Message msg = upd.getMessage();
+		String name = upd.getMessage().getFrom().getFirstName();
 
-		if (msg.entities() != null &&
-				msg.entities()[0].type().equals(MessageEntity.Type.bot_command)) {// если является командой
-			String text = msg.text();
+		if (msg.getEntities() != null &&
+				msg.getEntities().get(0).getType().contains("bot_command")) { // если является командой
+			String text = msg.getText();
 
 			String commandName = text.replace(myName, "");
 
@@ -84,7 +85,7 @@ public class UserBot {
 	}
 
 	public void process(Update upd) {
-		String forLog = "\n" + upd.message().date().toString() + upd.updateId() + " " + upd.message().from().firstName() + ": " + upd.message().text();
+		String forLog = "\n" + upd.getMessage().getDate().toString() + upd.getUpdateId() + " " + upd.getMessage().getFrom().getFirstName() + ": " + upd.getMessage().getText();
 		String answer = getAnswer(upd);
 		forLog += ("\n" + "Bot: " + answer);
 		MainActivity.updateLog(forLog);
@@ -95,19 +96,15 @@ public class UserBot {
 		}
 	}
 
-	public void sendMsg (String text) {
-//		SendMessage request = new SendMessage(upd.channelPost().chat().id(), answer)
-		SendMessage request = new SendMessage(chatId, text)
-				.parseMode(ParseMode.HTML)
-				.disableWebPagePreview(true)
-				.disableNotification(true)
-				.replyToMessageId(1)
-//					.replyMarkup(new ForceReply())
-				;
-
-		SendResponse sendResponse = MainActivity.bot.execute(request);
-		boolean ok = sendResponse.isOk();
-		Message message = sendResponse.message();
+	public void sendMsg (String message_text) {
+		SendMessage message = new SendMessage() // Create a message object object
+				.setChatId(chatId)
+				.setText(message_text);
+		try {
+			DonutellkoBot.donutellkoBot.sendMessage(message); // Sending our message object to user
+		} catch (TelegramApiException e) {
+			e.printStackTrace();
+		}
 	}
 
 }
