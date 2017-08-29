@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
 		});
 
 
-		CountDownTimer timer = new CountDownTimer(Long.MAX_VALUE, 200) {
+		CountDownTimer timer = new CountDownTimer(Long.MAX_VALUE, 150) {
 			@Override
 			public void onTick(long l) {
 				new UpdatesGetter().execute();
@@ -118,8 +118,8 @@ public class MainActivity extends AppCompatActivity {
 			} else
 				cur = userBots.get(id);
 
+			//updateLog("\n" + cur.name);
 			cur.process(upd);
-			updateLog("\n" + cur.name + " (" +  id + ") ");
 		}
 		return updId;
 	}
@@ -127,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
 
 	public static void updateLog(String text) {
 		if (text.length() > 0) {
-			log.append("\n" + text);
+			log.append(text);
 		}
 	}
 

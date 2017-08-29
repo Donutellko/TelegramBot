@@ -2,6 +2,7 @@ package com.donutellko.telegrambot;
 
 import android.util.Log;
 
+import com.pengrad.telegrambot.Callback;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.MessageEntity;
@@ -9,6 +10,8 @@ import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.model.request.ParseMode;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
+
+import java.io.IOException;
 
 /**
  * Created by donat on 8/22/17.
@@ -28,8 +31,7 @@ public class UserBot {
 		this.chatId = chat.id();
 		this.isPrivate = chat.type().equals(Chat.Type.Private);
 		this.name = isPrivate ?
-				"@" + chat.username() + " " + chat.firstName() + " " + chat.lastName() :
-				chat.title();
+				chat.firstName() + " " + chat.lastName() : chat.title();
 
 		log.append("Started chat " + (isPrivate ? "with " : "in ") + name);
 	}
@@ -84,10 +86,10 @@ public class UserBot {
 	}
 
 	public void process(Update upd) {
-		String forLog = "\n" + upd.message().date().toString() + upd.updateId() + " " + upd.message().from().firstName() + ": " + upd.message().text();
+		String forLog = upd.message().from().firstName() + ": " + upd.message().text();
 		String answer = getAnswer(upd);
 		forLog += ("\n" + "Bot: " + answer);
-		MainActivity.updateLog(forLog);
+		MainActivity.updateLog("\n" + forLog);
 		log.append(forLog);
 
 		if (upd != null) {
@@ -101,13 +103,22 @@ public class UserBot {
 				.parseMode(ParseMode.HTML)
 				.disableWebPagePreview(true)
 				.disableNotification(true)
-				.replyToMessageId(1)
-//					.replyMarkup(new ForceReply())
+//				.replyToMessageId(1)
+//				.replyMarkup(new ForceReply())
 				;
 
-		SendResponse sendResponse = MainActivity.bot.execute(request);
-		boolean ok = sendResponse.isOk();
-		Message message = sendResponse.message();
+		MainActivity.bot.execute(request, new Callback<SendMessage, SendResponse>() {
+			@Override
+			public void onResponse(SendMessage request, SendResponse response) {
+				MainActivity.updateLog("      ✓");
+			}
+
+			@Override
+			public void onFailure(SendMessage request, IOException e) {
+				MainActivity.updateLog("      x");
+			}
+		});
+
 	}
 
 }
