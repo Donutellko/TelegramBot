@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.CountDownTimer;
+import android.os.PowerManager;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -43,6 +44,10 @@ import static com.donutellko.telegrambot.MainActivity.userBots;
 
 public class MainActivity extends AppCompatActivity {
 
+	String
+			botKey = "424429240:AAHZEgOBd_j4LFOZlQvk3gfdqudjUBHye2U";
+	static String weatherUrl = "http://api.openweathermap.org/data/2.5/forecast?id=519690&appid=484811a1b7ad9193b884eb1396f726d1&units=metric&lang=ru";
+
 	static TextView tv;
 	TextView uv;
 	View content;
@@ -53,14 +58,22 @@ public class MainActivity extends AppCompatActivity {
 
 	static StringBuilder log = new StringBuilder("Waiting for orders!\n");
 	static String lastUpdated = "Updated: --";
+	static WeatherGetter weatherGetter = new WeatherGetter();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		bot = TelegramBotAdapter.build("424429240:AAHZEgOBd_j4LFOZlQvk3gfdqudjUBHye2U");
+		// WakeLock:
+		Context context = getApplicationContext();
+		PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+		PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "lolo");
+		wl.acquire();
 
+		bot = TelegramBotAdapter.build(botKey);
+
+		// Logs on screen:
 		content = findViewById(R.id.content);
 		tv = content.findViewById(R.id.tv);
 		uv = content.findViewById(R.id.uv);
@@ -70,11 +83,11 @@ public class MainActivity extends AppCompatActivity {
 		button.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
-				(new Broadcaster()).execute();
+				Broadcast();
 			}
 		});
 
-
+		// Update timer:
 		CountDownTimer timer = new CountDownTimer(Long.MAX_VALUE, 150) {
 			@Override
 			public void onTick(long l) {
@@ -89,13 +102,6 @@ public class MainActivity extends AppCompatActivity {
 				start();
 			}
 		}.start();
-
-//		bot.setUpdatesListener(new UpdatesListener() {
-//			@Override
-//			public int process(List<Update> updates) {
-//				return processUpdates(updates);
-//			}
-//		});
 	}
 
 	public static int processUpdates(List<Update> updates) {
@@ -118,7 +124,6 @@ public class MainActivity extends AppCompatActivity {
 			} else
 				cur = userBots.get(id);
 
-			//updateLog("\n" + cur.name);
 			cur.process(upd);
 		}
 		return updId;
@@ -136,6 +141,15 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	@Override
+	protected void onStart() {
+		super.onStart();
+		SharedPreferences sp = getApplicationContext().getSharedPreferences("Prefs", Context.MODE_PRIVATE);
+//		SharedPreferences.Editor spe = sp.edit();
+
+		updId = sp.getInt("Last processed update", 0);
+	}
+
+	@Override
 	protected void onStop() {
 		super.onStop();
 		SharedPreferences sp = getApplicationContext().getSharedPreferences("Prefs", Context.MODE_PRIVATE);
@@ -144,13 +158,10 @@ public class MainActivity extends AppCompatActivity {
 		spe.putInt("Last processed update", updId);
 	}
 
-	@Override
-	protected void onStart() {
-		super.onStart();
-		SharedPreferences sp = getApplicationContext().getSharedPreferences("Prefs", Context.MODE_PRIVATE);
-//		SharedPreferences.Editor spe = sp.edit();
-
-		updId = sp.getInt("Last processed update", 0);
+	void Broadcast () {
+		for (Long id : ids) {
+			DonutellkoBot.sendMsg(id, "Куку, юзер! Это короч тест сейчас проходит.");
+		}
 	}
 }
 
@@ -165,12 +176,4 @@ class UpdatesGetter extends AsyncTask<Void, Void, Void> {
 	}
 }
 
-class Broadcaster extends AsyncTask<Void, Void, Void> {
-	@Override
-	protected Void doInBackground(Void... voids) {
-		for (Long id : ids) {
-			userBots.get(id).sendMsg("Куку, юзер! Это тест хезе чего сейчас проходит.");
-		}
-		return null;
-	}
-}
+
