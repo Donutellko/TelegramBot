@@ -20,6 +20,7 @@ public class WeatherGetter {
 		CountDownTimer timer = new CountDownTimer(Long.MAX_VALUE, 30 * 60 * 1000) { // обновление раз в 30 минут
 			@Override
 			public void onTick(long l) {
+				MainActivity.log.append("\nWeather updated!");
 				new WeatherJsonAsync().execute();
 			}
 
@@ -80,7 +81,7 @@ class WeatherJsonAsync extends AsyncTask<Void, Void, Void> {
 	@Override
 	protected Void doInBackground(Void... voids) {
 		try {
-			String response = getDataFromUrl(MainActivity.weatherUrl);
+			String response = getDataFromUrl(DonutellkoBot.weatherUrl);
 			ResponseObject weathers = new Gson().fromJson(response, ResponseObject.class);
 			WeatherGetter.currentInfo = weathers;
 			WeatherGetter.currentInfoString = WeatherGetter.getToday(weathers);
@@ -100,7 +101,7 @@ class WeatherJsonAsync extends AsyncTask<Void, Void, Void> {
 		try {
 			URL url = new URL(url_s);
 			uc = url.openConnection();
-			uc.setConnectTimeout(100);
+			uc.setConnectTimeout(1000);
 			uc.connect();
 			reader = new BufferedReader(new InputStreamReader(uc.getInputStream()));
 			StringBuilder buffer = new StringBuilder();

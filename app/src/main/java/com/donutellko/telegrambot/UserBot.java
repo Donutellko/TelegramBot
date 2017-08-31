@@ -1,34 +1,26 @@
 package com.donutellko.telegrambot;
 
 import android.util.Log;
+import android.util.StringBuilderPrinter;
 
-import com.pengrad.telegrambot.Callback;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.Message;
-import com.pengrad.telegrambot.model.MessageEntity;
 import com.pengrad.telegrambot.model.Update;
-import com.pengrad.telegrambot.model.request.ParseMode;
-import com.pengrad.telegrambot.request.SendMessage;
-import com.pengrad.telegrambot.response.SendResponse;
 
-import java.io.IOException;
-
-import static com.donutellko.telegrambot.MainActivity.bot;
+import static com.donutellko.telegrambot.MainActivity.donutellkoBot;
 
 /**
  * Created by donat on 8/22/17.
  */
 
 public class UserBot {
-
 	Long chatId;
 	String name;
 	boolean isPrivate;
-	StringBuilder log = new StringBuilder();
-	int groupId = 24103;
+	int groupId = 0;
 	public String timetable = "";
 	Question question = null;
-	TimetableGetter timetableGetter = null;
+	StringBuilder dialog = new StringBuilder();
 
 	public UserBot(Update upd) {
 		Chat chat = upd.message().chat();
@@ -37,7 +29,7 @@ public class UserBot {
 		this.name = isPrivate ?
 				chat.firstName() + " " + chat.lastName() : chat.title();
 
-		log.append("Started chat " + (isPrivate ? "with " : "in ") + name);
+		dialog.append("Started chat " + (isPrivate ? "with " : "in ") + name);
 	}
 
 	public void process(Update upd) {
@@ -45,10 +37,10 @@ public class UserBot {
 		String answer = getAnswer(upd);
 		forLog += ("\n" + "Bot: " + answer);
 		MainActivity.updateLog("\n" + forLog);
-		log.append(forLog);
+		dialog.append(forLog);
 
 		if (upd != null) {
-			DonutellkoBot.sendMsg(chatId, answer);
+			donutellkoBot.sendMsg(chatId, answer);
 		}
 	}
 
@@ -61,7 +53,6 @@ public class UserBot {
 			String text = msg.text();
 
 			String commandName = text.replace("@" + DonutellkoBot.myName, "");
-
 
 			Log.i("command:", commandName);
 
@@ -88,20 +79,8 @@ public class UserBot {
 			return "Даже не знаю, что сказать...";*/
 	}
 
-	public String getToday() {
-		if (timetable.length() > 0) {
-			return timetable;
-		} else if (groupId > 0) {
-			if (timetableGetter == null)
-				timetableGetter = new TimetableGetter(this);
-			return "Инфы для группы с id=" + groupId + " ещё нет...";// "Попробуй спросить /today ещё раз...";
-		} else {
-			question = Question.GROUP_NUMBER;
-			return "Назови id своей группы на сайте расписаний: ruz.spbstu.ru";
-		}
-	}
 
-	public String getWeek() {
+	public String getToday() {
 		return "Нет инфы. Зайди потом.";
 	}
 
@@ -109,18 +88,29 @@ public class UserBot {
 		if (MainActivity.weatherGetter.currentInfoString.length() > 0)
 			return MainActivity.weatherGetter.currentInfoString;
 		else
-			return "С вероятностью в 99.(9)% сегодня пойдёт дождь.";
+			return "С вероятностью в 99.(9)% сегодня пойдёт дождь. А к сервису погоды чего-то не подключиться... Смыло штоле?";
+	}
+
+	public String getWeek() {
+		if (timetable.length() > 0) {
+			return timetable;
+		} else if (groupId > 0) {
+			TimetableGetter.getTimetable(this);
+			return timetable.length() > 0 ? "" : "Инфы для группы с id=" + groupId + " нет или сайт недоступен...";// "Попробуй спросить /today ещё раз...";
+		} else {
+			question = Question.GROUP_NUMBER;
+			return "Назови id своей группы на сайте расписаний: ruz.spbstu.ru";
+		}
 	}
 
 	public String questionAnswer (String answer) {
-
-		if (question.equals(Question.GROUP_NUMBER)) {
+		if (question != null && question.equals(Question.GROUP_NUMBER)) {
 			try {
 				groupId = Integer.parseInt(answer);
 			} catch (Exception e) {
 				return "Неверный формат. Пришли мне одно число или \'/stop\' чтоб отменить.";
 			}
-			return getToday();
+			return getWeek();
 		} else
 			return "Не понял тебя...";
 	}
